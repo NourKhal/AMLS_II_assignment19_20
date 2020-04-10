@@ -51,6 +51,8 @@ if __name__ == '__main__':
     tweets = pd.read_csv(tweets_directory, sep='\t')
     tweets.columns = ['TweetID', 'Sentiment', 'Tweet']
     dict_tweets = tweets.to_dict('records')
+    tweetProcessor = PreProcessTweets()
+    preprocessedTrainingSet = tweetProcessor.process_tweets(dict_tweets)
 
 
 
