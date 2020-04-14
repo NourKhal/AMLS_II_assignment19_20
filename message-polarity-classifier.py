@@ -38,14 +38,40 @@ class PreProcessTweets:
         processedTweets=[]
         for tweet in list_of_tweets:
             processedTweets.append((self._processTweet(tweet["Tweet"]),tweet["Sentiment"]))
+            random.shuffle(processedTweets)
         return processedTweets
 
     def _processTweet(self, tweet):
         # change all text to lowercase
         tweet = tweet.lower()
+        # remove all links and URLs from the tweets
+        tweet = re.sub('((www\.[^\s]+)|(https?://[^\s]+))', 'URL', tweet)
+        # remove all the usernames if any
+        tweet = re.sub('@[^\s]+', 'AT_USER', tweet)
+        # remove all the hashtag symbols form the tweets
+        tweet = re.sub(r'#([^\s]+)', r'\1', tweet)
         # remove all the meaningless repeated characters from the tweets to unify the words
         tweet = word_tokenize(tweet)
         return [word for word in tweet if word not in self._stopwords]
+
+# Function to build the vocabulary of all the words that exist in the tweets
+def create_wordbook(preprocessed_training_data):
+    all_words = []
+
+    for (words, sentiment) in preprocessed_training_data:
+        all_words.extend(words)
+
+    word_list = FreqDist(all_words)
+    word_features = word_list.keys()
+    return word_features
+
+
+def extract_tweet_features(tweet):
+    tweet_words = set(tweet)
+    features = {}
+    for word in word_features:
+        features['contains(%s)' % word] = (word in tweet_words)
+    return features
 
 
 if __name__ == '__main__':
