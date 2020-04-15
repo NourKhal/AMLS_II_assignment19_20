@@ -9,11 +9,14 @@ from nltk import FreqDist
 from nltk import classify
 from nltk import NaiveBayesClassifier
 import random
+import collections
 import pickle
 from nltk.classify.scikitlearn import SklearnClassifier
 from sklearn.naive_bayes import MultinomialNB,BernoulliNB
 from sklearn.linear_model import LogisticRegression,SGDClassifier
 from sklearn.svm import SVC, LinearSVC, NuSVC
+from nltk.metrics.scores import (precision, recall)
+
 
 
 def get_features_and_labels(tweets_directory):
@@ -76,31 +79,50 @@ def extract_tweet_features(tweet):
 
 if __name__ == '__main__':
 
-    arg_parser = argparse.ArgumentParser(description='ML model trained on Twitter tweets to classify sentiment from input tweets or messages.')
+    arg_parser = argparse.ArgumentParser(
+        description='ML model trained on Twitter tweets to classify sentiment from input tweets or messages.')
     arg_parser.add_argument('-i', '--tweets-dir',
                             help='the path to the directory where the tweets and labels are',
                             required=True)
-
 
     args = vars(arg_parser.parse_args())
     tweets_directory = args['tweets_dir']
     print("Building sentiment classification model from Twitter tweets (text messages) in {}.".format(tweets_directory))
 
-    cwd = os.getcwd()
-    csv_file_path = cwd + '/tweets_and_sentiment.csv'
-    tweets = pd.read_csv(tweets_directory, sep='\t')
-    tweets.columns = ['TweetID', 'Sentiment', 'Tweet']
-    dict_tweets = tweets.to_dict('records')
+    dict_tweets_training, dict_tweets_validation, dict_tweets_test = get_features_and_labels(tweets_directory)
+
     tweetProcessor = PreProcessTweets()
-    preprocessedTrainingSet = tweetProcessor.process_tweets(dict_tweets)
+    preprocessed_training_data = tweetProcessor.process_tweets(dict_tweets_training)
+    preprocessed_validation_data = tweetProcessor.process_tweets(dict_tweets_validation)
+    preprocessed_test_data = tweetProcessor.process_tweets(dict_tweets_test)
 
-    MNB_classifier = SklearnClassifier(MultinomialNB())
-    MNB_classifier.train(training_features)
-    print("MultinomialNB accuracy percent:", classify.accuracy(MNB_classifier, validation_features))
+    word_features = create_wordbook(preprocessed_training_data)
+    training_features = classify.apply_features(extract_tweet_features, preprocessed_training_data)
+    validation_features = classify.apply_features(extract_tweet_features, preprocessed_validation_data)
+    test_features = classify.apply_features(extract_tweet_features, preprocessed_test_data)
 
-    BNB_classifier = SklearnClassifier(BernoulliNB())
-    BNB_classifier.train(training_features)
-    print("BernoulliNB accuracy percent:", classify.accuracy(BNB_classifier, validation_features))
+    NBayesClassifier = NaiveBayesClassifier.train(training_features)
+    print("Classifier accuracy percent:",classify.accuracy(NBayesClassifier, test_features)*100)
+    NBResultLabels = [NBayesClassifier.classify(extract_tweet_features(tweet[0])) for tweet in preprocessed_validation_data]
+    most_informative_features = NBayesClassifier.show_most_informative_features(15)
+
+    # # get the majority vote
+    if NBResultLabels.count('positive') > NBResultLabels.count('negative') and NBResultLabels.count('neutral'):
+        print("Overall Positive Sentiment")
+        print("Positive Sentiment Percentage = " + str(100*NBResultLabels.count('positive')/len(NBResultLabels)) + "%")
+    elif NBResultLabels.count('negative') > NBResultLabels.count('positive') and NBResultLabels.count('neutral'):
+        print("Overall neutral Sentiment")
+        print("Neutral Sentiment Percentage = " + str(100*NBResultLabels.count('neutral')/len(NBResultLabels)) + "%")
+    else:
+        print("Overall Negative Sentiment")
+        print("Negative Sentiment Percentage = " + str(100*NBResultLabels.count('negative')/len(NBResultLabels)) + "%")
+    save_classifier = open("naivebayes.pickle","wb")
+    pickle.dump(NBayesClassifier, save_classifier)
+    save_classifier.close()
+
+    classifier_f = open("naivebayes.pickle", "rb")
+    classifier = pickle.load(classifier_f)
+    classifier_f.close()
 
     print("Original Naive Bayes Algo accuracy percent:", (classify.accuracy(classifier, validation_features))*100)
     classifier.show_most_informative_features(15)
@@ -121,17 +143,26 @@ if __name__ == '__main__':
     SGDClassifier_classifier.train(training_features)
     print("SGDClassifier_classifier accuracy percent:", (classify.accuracy(SGDClassifier_classifier, validation_features))*100)
 
-    SVC_classifier = SklearnClassifier(SVC())
+    SVC_classifier = SklearnClassifier(SVC(kernel='poly', gamma=0.0001, C=100))
     SVC_classifier.train(training_features)
     print("SVC_classifier accuracy percent:", (classify.accuracy(SVC_classifier, validation_features))*100)
 
     LinearSVC_classifier = SklearnClassifier(LinearSVC())
     LinearSVC_classifier.train(training_features)
     print("LinearSVC_classifier accuracy percent:", (classify.accuracy(LinearSVC_classifier, validation_features))*100)
+    refsets = collections.defaultdict(set)
+    testsets = collections.defaultdict(set)
+    for i, (feats, label) in enumerate(test_features):
+             refsets[label].add(i)
+             observed = NBayesClassifier.classify(feats)
+             testsets[observed].add(i)
+    print('negative precision:', precision(refsets['negative'], testsets['negative']))
+    print('neutral precision:', precision(refsets['neutral'], testsets['neutral']))
+    print('positive precision:', precision(refsets['positive'], testsets['positive']))
 
-    NuSVC_classifier = SklearnClassifier(NuSVC())
-    NuSVC_classifier.train(training_features)
-    print("NuSVC_classifier accuracy percent:", (classify.accuracy(NuSVC_classifier, validation_features))*100)
+    print('negative recall:', recall(refsets['negative'], testsets['negative']))
+    print('neutral recall:', recall(refsets['neutral'], testsets['neutral']))
+    print('positive recall:', recall(refsets['positive'], testsets['positive']))
 
-
-
+    for key,value in sorted(NBayesClassifier.evaluate(test_features).items()):
+     print('{0}: {1}'.format(key, value))
