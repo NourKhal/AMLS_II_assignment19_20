@@ -18,10 +18,10 @@ from sklearn.svm import SVC, LinearSVC, NuSVC
 from nltk.metrics.scores import (precision, recall)
 
 
-
 def get_features_and_labels(tweets_directory):
     tweets = pd.read_csv(tweets_directory, sep='\t')
     tweets.columns = ['TweetID', 'Sentiment', 'Tweet']
+    tweets = tweets[tweets['Tweet'] != 'Not Available']
     tweets_training = tweets[:4199]
     tweets_validation = tweets[4200:5099]
     tweets_test = tweets[5100:6000]
@@ -164,5 +164,4 @@ if __name__ == '__main__':
     print('neutral recall:', recall(refsets['neutral'], testsets['neutral']))
     print('positive recall:', recall(refsets['positive'], testsets['positive']))
 
-    for key,value in sorted(NBayesClassifier.evaluate(test_features).items()):
-     print('{0}: {1}'.format(key, value))
+
