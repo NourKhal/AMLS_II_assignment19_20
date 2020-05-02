@@ -4,7 +4,7 @@ import re
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from string import punctuation
-from nltk import FreqDist, MaxentClassifier, classify
+from nltk import FreqDist, MaxentClassifier, classify, precision, recall, collections
 from pprint import PrettyPrinter
 import random
 import numpy as np
@@ -96,8 +96,37 @@ def construct_featureset(tweets_dict, preprocessor):
 def build_model(training_features,preprocessed_validation_data ):
     algorithm = MaxentClassifier.ALGORITHMS[0]
     MaxEntClassifier = MaxentClassifier.train(training_features, algorithm,max_iter=3)
-    return [MaxEntClassifier.classify(extract_tweet_features(tweet[0])) for tweet in preprocessed_validation_data]
+    predictions =  [MaxEntClassifier.classify(extract_tweet_features(tweet[0])) for tweet in preprocessed_validation_data]
+    return MaxEntClassifier, predictions
 
+
+def evaluate_model(MaxEntClassifier):
+    refsets = collections.defaultdict(set)
+    testsets = collections.defaultdict(set)
+
+    accuracy = classify.accuracy(MaxEntClassifier, validation_features)*100
+    accuracy_list.append(accuracy)
+
+    for i, (feats, label) in enumerate(validation_features):
+        refsets[label].add(i)
+        observed = MaxEntClassifier.classify(feats)
+        testsets[observed].add(i)
+        negative_precision = precision(refsets['negative'], testsets['negative'])
+        positive_precision = precision(refsets['positive'], testsets['positive'])
+        positive_recall = recall(refsets['positive'], testsets['positive'])
+        negative_recall = recall(refsets['negative'], testsets['negative'])
+        try:
+            avg_recall = 0.5*(negative_recall+positive_recall)
+            avg_precision = 0.5*(negative_precision+positive_precision)
+            precision_list.append(avg_precision)
+            recall_list.append(avg_recall)
+        except TypeError:
+            pass
+    Average_recall = np.mean(recall_list)
+    Average_precission = np.mean(precision_list)
+    Average_accuracy = np.mean(accuracy_list)
+    F1_score = 2*((np.mean(recall_list) * np.mean(precision_list)) / (np.mean(recall_list) + np.mean(precision_list)))
+    return Average_accuracy, Average_precission, Average_recall, F1_score
 
 
 if __name__ == '__main__':
