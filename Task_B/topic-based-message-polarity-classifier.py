@@ -144,13 +144,24 @@ if __name__ == '__main__':
     tweets_df = load_tweets(tweet_file)
     validate_against_file(tweet_file, tweets_df)
     tweets_df = remove_unavailable_tweets(tweets_df)
+    precision_list = []
+    recall_list = []
+    accuracy_list = []
 
     df_grouped = tweets_df.groupby('Topic')
     for name, group in df_grouped:
         training_df, validation_df, test_df = np.split(group.sample(frac=1), [int(.6*len(group)), int(.8*len(group))])
+
         preprocessor = TweetPreprocessor()
         word_features = create_wordbook(preprocessor.preprocess(training_df.to_dict('records')))
         training_features = construct_featureset(training_df.to_dict('records'), preprocessor)
         validation_features = construct_featureset(validation_df.to_dict('records'), preprocessor)
         test_features = construct_featureset(test_df.to_dict('records'), preprocessor)
         preprocessed_validation_data = preprocessor.preprocess(validation_df.to_dict('records'))
+        MaxEntClassifier, predictions = build_model(training_features, preprocessed_validation_data)
+        Average_accuracy, Average_precission, Average_recall, F1_score = evaluate_model(MaxEntClassifier)
+        print('Average Recall:', Average_recall)
+        print('Average Precision:', Average_precission)
+        print('Average Accuracy:', Average_accuracy)
+        print('F1_score:', F1_score)
+
