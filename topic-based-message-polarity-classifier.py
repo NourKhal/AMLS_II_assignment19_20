@@ -1,26 +1,15 @@
 import argparse
 import pandas as pd
-import os
 import re
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from string import punctuation
 from nltk import FreqDist
-from nltk import classify
-from nltk import NaiveBayesClassifier
+from pprint import PrettyPrinter
 import random
-import collections
-import pickle
-from nltk.classify.scikitlearn import SklearnClassifier
-from sklearn.naive_bayes import MultinomialNB,BernoulliNB
-from sklearn.linear_model import LogisticRegression,SGDClassifier
-from sklearn.svm import SVC, LinearSVC, NuSVC
-from nltk.metrics.scores import (precision, recall)
-import itertools
-from pprint import pprint
 
 
-
+# Load the tweets from the tsv as a pandas dataframe
 def load_tweets(tweet_file_path):
     tweets_dataframe = pd.read_csv(tweet_file_path, sep='\t', header=None, quotechar="'")
     tweets_dataframe.columns = ['TweetID', 'Topic', 'Sentiment', 'Tweet']
@@ -29,7 +18,6 @@ def load_tweets(tweet_file_path):
 
 
 # Pre-processing the tweets before applying any sentiment classification
-
 class PreProcessTweets:
     def __init__(self):
         self._stopwords = set(stopwords.words('english') + list(punctuation) + ['AT_USER','URL'])
@@ -41,7 +29,7 @@ class PreProcessTweets:
             random.shuffle(processedTweets)
         return processedTweets
 
-    def _processTweet(self, tweet):
+    def clean(self, tweet):
         # change all text to lowercase
         tweet = tweet.lower()
         # remove all links and URLs from the tweets
