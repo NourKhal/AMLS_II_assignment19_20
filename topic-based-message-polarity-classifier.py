@@ -32,6 +32,12 @@ def validate_against_file(tweet_file_path, tweets_dataframe):
         not_found_rows = [line for line in raw_tweet_list if int(line.split('\t')[0]) in not_found_list]
         PrettyPrinter().pprint(not_found_rows)
 
+# Remove all the unavailable tweets from the dataframe
+def remove_unavailable_tweets(tweets_dataframe):
+    print("Filtering out unavailable tweets...")
+    tweets_dataframe = tweets_dataframe[tweets_dataframe['Tweet'] != 'Not Available']
+    print("Filtered down to {} tweets".format(len(tweets_dataframe.index)))
+    return tweets_dataframe
 
 
 # Pre-processing the tweets before applying any sentiment classification
