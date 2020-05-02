@@ -4,7 +4,7 @@ import re
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from string import punctuation
-from nltk import FreqDist, MaxentClassifier
+from nltk import FreqDist, MaxentClassifier, classify
 from pprint import PrettyPrinter
 import random
 
@@ -41,7 +41,7 @@ def remove_unavailable_tweets(tweets_dataframe):
 
 
 # Pre-processing the tweets before applying any sentiment classification
-class PreProcessTweets:
+class TweetPreprocessor:
     def __init__(self):
         self._stopwords = set(stopwords.words('english') + list(punctuation) + ['AT_USER','URL'])
 
@@ -85,6 +85,10 @@ def extract_tweet_features(tweet):
         features['contains(%s)' % word] = (word in tweet_words)
     return features
 
+def construct_featureset(tweets_dict, preprocessor):
+    preprocessed_tweets = preprocessor.preprocess(tweets_dict)
+    return classify.apply_features(extract_tweet_features, preprocessed_tweets)
+
 def build_model(training_features,preprocessed_validation_data ):
     algorithm = MaxentClassifier.ALGORITHMS[0]
     MaxEntClassifier = MaxentClassifier.train(training_features, algorithm,max_iter=3)
@@ -96,10 +100,10 @@ if __name__ == '__main__':
 
     arg_parser = argparse.ArgumentParser(
         description='ML model trained on Twitter tweets to classify sentiment from input tweets or messages.')
-    arg_parser.add_argument('-i', '--tweets-dir',
-                            help='the path to the directory where the tweets and labels are',
+    arg_parser.add_argument('-i', '--tweets-file',
+                            help='The path to the TSV tweets file containing labelled tweets',
                             required=True)
 
     args = vars(arg_parser.parse_args())
-    tweets_directory = args['tweets_dir']
-    print("Building sentiment classification model from Twitter tweets (text messages) in {}.".format(tweets_directory))
+    tweet_file = args['tweets_file']
+    print("Building sentiment classification model from Twitter tweets (text messages) in {}.".format(tweet_file))
