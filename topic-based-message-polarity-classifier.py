@@ -17,6 +17,23 @@ def load_tweets(tweet_file_path):
     return tweets_dataframe
 
 
+def validate_against_file(tweet_file_path, tweets_dataframe):
+    # make sure all rows in the file have been loaded
+    raw_tweet_list = open(tweet_file_path).readlines()
+    raw_tweet_ids = [int(line.split('\t')[0]) for line in raw_tweet_list]
+    found_list = []
+    for index, row in tweets_dataframe.iterrows():
+        tweet_id = row['TweetID']
+        if tweet_id in raw_tweet_ids:
+            found_list.append(tweet_id)
+    not_found_list = set(raw_tweet_ids) - set(found_list)
+    if not_found_list:
+        print("Tweets not parsed into data frame:\n{}".format(list(not_found_list)))
+        not_found_rows = [line for line in raw_tweet_list if int(line.split('\t')[0]) in not_found_list]
+        PrettyPrinter().pprint(not_found_rows)
+
+
+
 # Pre-processing the tweets before applying any sentiment classification
 class PreProcessTweets:
     def __init__(self):
@@ -25,7 +42,7 @@ class PreProcessTweets:
     def process_tweets(self, list_of_tweets):
         processedTweets=[]
         for tweet in list_of_tweets:
-            processedTweets.append((self._processTweet(tweet["Tweet"]),tweet["Topic"], tweet["Sentiment"]))
+            processedTweets.append((self.clean(tweet["Tweet"]), tweet["Sentiment"]))
             random.shuffle(processedTweets)
         return processedTweets
 
@@ -47,7 +64,7 @@ class PreProcessTweets:
 def create_wordbook(preprocessed_training_data):
     all_words = []
 
-    for (words, topic, sentiment) in preprocessed_training_data:
+    for (words,sentiment) in preprocessed_training_data:
         all_words.extend(words)
 
     word_list = FreqDist(all_words)
