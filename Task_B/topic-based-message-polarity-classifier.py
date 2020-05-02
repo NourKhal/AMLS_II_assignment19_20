@@ -8,6 +8,7 @@ from nltk import FreqDist, MaxentClassifier, classify, precision, recall, collec
 from pprint import PrettyPrinter
 import random
 import numpy as np
+import pickle
 
 
 # Load the tweets from the tsv as a pandas dataframe
@@ -128,6 +129,18 @@ def evaluate_model(MaxEntClassifier):
     F1_score = 2*((np.mean(recall_list) * np.mean(precision_list)) / (np.mean(recall_list) + np.mean(precision_list)))
     return Average_accuracy, Average_precission, Average_recall, F1_score
 
+def save_model(MaxEntClassifier):
+    f = open('MaxEntClassifier.pickle', 'wb')
+    pickle.dump(MaxEntClassifier, f)
+    f.close()
+    trained_model = 'MaxEntClassifier.pickle'
+    return trained_model
+
+def restore_trained_model(trained_model):
+    f = open(trained_model, 'rb')
+    classifier = pickle.load(f)
+    f.close()
+    return classifier
 
 if __name__ == '__main__':
 
