@@ -9,19 +9,23 @@ from nltk import FreqDist
 from nltk import classify
 from nltk import NaiveBayesClassifier
 import random
+import collections
+import pickle
+from nltk.classify.scikitlearn import SklearnClassifier
+from sklearn.naive_bayes import MultinomialNB,BernoulliNB
+from sklearn.linear_model import LogisticRegression,SGDClassifier
+from sklearn.svm import SVC, LinearSVC, NuSVC
+from nltk.metrics.scores import (precision, recall)
+import itertools
+from pprint import pprint
 
 
-def get_features_and_labels(tweets_directory):
-    tweets = pd.read_csv(tweets_directory, sep='\t')
-    tweets.columns = ['TweetID', 'Topic', 'Sentiment', 'Tweet']
-    tweets = tweets[tweets['Tweet'] != 'Not Available']
-    tweets_training = tweets[:2109]
-    tweets_validation = tweets[2110:2561]
-    tweets_test = tweets[2562:3014]
-    dict_tweets_training = tweets_training.to_dict('records')
-    dict_tweets_validation = tweets_validation.to_dict('records')
-    dict_tweets_test = tweets_test.to_dict('records')
-    return dict_tweets_training, dict_tweets_validation, dict_tweets_test
+
+def load_tweets(tweet_file_path):
+    tweets_dataframe = pd.read_csv(tweet_file_path, sep='\t', header=None, quotechar="'")
+    tweets_dataframe.columns = ['TweetID', 'Topic', 'Sentiment', 'Tweet']
+    print("Read in {} tweets".format(len(tweets_dataframe.index)))
+    return tweets_dataframe
 
 
 # Pre-processing the tweets before applying any sentiment classification
@@ -70,8 +74,6 @@ def extract_tweet_features(tweet):
         features['contains(%s)' % word] = (word in tweet_words)
     return features
 
-def keyfunc(x):
-    return x['Topic']
 
 
 if __name__ == '__main__':
@@ -85,15 +87,3 @@ if __name__ == '__main__':
     args = vars(arg_parser.parse_args())
     tweets_directory = args['tweets_dir']
     print("Building sentiment classification model from Twitter tweets (text messages) in {}.".format(tweets_directory))
-
-    dict_tweets_training, dict_tweets_validation, dict_tweets_test = get_features_and_labels(tweets_directory)
-    tweetProcessor = PreProcessTweets()
-    preprocessed_training_data = tweetProcessor.process_tweets(dict_tweets_training)
-    preprocessed_validation_data = tweetProcessor.process_tweets(dict_tweets_validation)
-    preprocessed_test_data = tweetProcessor.process_tweets(dict_tweets_test)
-
-    word_features = create_wordbook(preprocessed_training_data)
-    training_features = classify.apply_features(extract_tweet_features, preprocessed_training_data)
-    validation_features = classify.apply_features(extract_tweet_features, preprocessed_validation_data)
-    test_features = classify.apply_features(extract_tweet_features, preprocessed_test_data)
-
