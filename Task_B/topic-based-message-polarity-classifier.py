@@ -7,6 +7,7 @@ from string import punctuation
 from nltk import FreqDist, MaxentClassifier, classify
 from pprint import PrettyPrinter
 import random
+import numpy as np
 
 
 # Load the tweets from the tsv as a pandas dataframe
@@ -32,6 +33,7 @@ def validate_against_file(tweet_file_path, tweets_dataframe):
         not_found_rows = [line for line in raw_tweet_list if int(line.split('\t')[0]) in not_found_list]
         PrettyPrinter().pprint(not_found_rows)
 
+
 # Remove all the unavailable tweets from the dataframe
 def remove_unavailable_tweets(tweets_dataframe):
     print("Filtering out unavailable tweets...")
@@ -45,7 +47,7 @@ class TweetPreprocessor:
     def __init__(self):
         self._stopwords = set(stopwords.words('english') + list(punctuation) + ['AT_USER','URL'])
 
-    def process_tweets(self, list_of_tweets):
+    def preprocess(self, list_of_tweets):
         processedTweets=[]
         for tweet in list_of_tweets:
             processedTweets.append((self.clean(tweet["Tweet"]), tweet["Sentiment"]))
@@ -85,9 +87,11 @@ def extract_tweet_features(tweet):
         features['contains(%s)' % word] = (word in tweet_words)
     return features
 
+
 def construct_featureset(tweets_dict, preprocessor):
     preprocessed_tweets = preprocessor.preprocess(tweets_dict)
     return classify.apply_features(extract_tweet_features, preprocessed_tweets)
+
 
 def build_model(training_features,preprocessed_validation_data ):
     algorithm = MaxentClassifier.ALGORITHMS[0]
@@ -107,3 +111,17 @@ if __name__ == '__main__':
     args = vars(arg_parser.parse_args())
     tweet_file = args['tweets_file']
     print("Building sentiment classification model from Twitter tweets (text messages) in {}.".format(tweet_file))
+
+    tweets_df = load_tweets(tweet_file)
+    validate_against_file(tweet_file, tweets_df)
+    tweets_df = remove_unavailable_tweets(tweets_df)
+
+    df_grouped = tweets_df.groupby('Topic')
+    for name, group in df_grouped:
+        training_df, validation_df, test_df = np.split(group.sample(frac=1), [int(.6*len(group)), int(.8*len(group))])
+        preprocessor = TweetPreprocessor()
+        word_features = create_wordbook(preprocessor.preprocess(training_df.to_dict('records')))
+        training_features = construct_featureset(training_df.to_dict('records'), preprocessor)
+        validation_features = construct_featureset(validation_df.to_dict('records'), preprocessor)
+        test_features = construct_featureset(test_df.to_dict('records'), preprocessor)
+        preprocessed_validation_data = preprocessor.preprocess(validation_df.to_dict('records'))
