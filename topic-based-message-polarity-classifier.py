@@ -4,7 +4,7 @@ import re
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from string import punctuation
-from nltk import FreqDist
+from nltk import FreqDist, MaxentClassifier
 from pprint import PrettyPrinter
 import random
 
@@ -73,7 +73,7 @@ def create_wordbook(preprocessed_training_data):
     for (words,sentiment) in preprocessed_training_data:
         all_words.extend(words)
 
-    word_list = FreqDist(all_words)
+    word_list = FreqDist(all_words) # encode the frequency distributions and count the number of each occurrence
     word_features = word_list.keys()
     return word_features
 
@@ -84,6 +84,11 @@ def extract_tweet_features(tweet):
     for word in word_features:
         features['contains(%s)' % word] = (word in tweet_words)
     return features
+
+def build_model(training_features,preprocessed_validation_data ):
+    algorithm = MaxentClassifier.ALGORITHMS[0]
+    MaxEntClassifier = MaxentClassifier.train(training_features, algorithm,max_iter=3)
+    return [MaxEntClassifier.classify(extract_tweet_features(tweet[0])) for tweet in preprocessed_validation_data]
 
 
 
