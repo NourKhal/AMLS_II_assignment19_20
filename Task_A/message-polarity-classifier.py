@@ -1,34 +1,50 @@
 import argparse
-import pandas as pd
-import os
-import re
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
-from string import punctuation
-from nltk import FreqDist
-from nltk import classify
-from nltk import NaiveBayesClassifier
-import random
 import collections
-import pickle
-from nltk.classify.scikitlearn import SklearnClassifier
-from sklearn.naive_bayes import MultinomialNB,BernoulliNB
-from sklearn.linear_model import LogisticRegression,SGDClassifier
-from sklearn.svm import SVC, LinearSVC, NuSVC
+import random
+import re
+from pprint import PrettyPrinter
+from string import punctuation
+
+import numpy as np
+import pandas as pd
+from nltk import FreqDist
+from nltk import NaiveBayesClassifier
+from nltk import classify
+from nltk.corpus import stopwords
 from nltk.metrics.scores import (precision, recall)
+from nltk.tokenize import word_tokenize
 
 
-def get_features_and_labels(tweets_directory):
-    tweets = pd.read_csv(tweets_directory, sep='\t')
-    tweets.columns = ['TweetID', 'Sentiment', 'Tweet']
-    tweets = tweets[tweets['Tweet'] != 'Not Available']
-    tweets_training = tweets[:4199]
-    tweets_validation = tweets[4200:5099]
-    tweets_test = tweets[5100:6000]
-    dict_tweets_training = tweets_training.to_dict('records')
-    dict_tweets_validation = tweets_validation.to_dict('records')
-    dict_tweets_test = tweets_test.to_dict('records')
-    return dict_tweets_training, dict_tweets_validation, dict_tweets_test
+# Load the tweets from the tsv as a pandas dataframe
+def load_tweets(tweet_file_path):
+    tweets_dataframe = pd.read_csv(tweet_file_path, sep='\t', header=None, quotechar="'")
+    tweets_dataframe.columns = ['TweetID','Sentiment', 'Tweet']
+    print("Read in {} tweets".format(len(tweets_dataframe.index)))
+    return tweets_dataframe
+
+
+def validate_against_file(tweet_file_path, tweets_dataframe):
+    # make sure all rows in the file have been loaded
+    raw_tweet_list = open(tweet_file_path).readlines()
+    raw_tweet_ids = [int(line.split('\t')[0]) for line in raw_tweet_list]
+    found_list = []
+    for index, row in tweets_dataframe.iterrows():
+        tweet_id = row['TweetID']
+        if tweet_id in raw_tweet_ids:
+            found_list.append(tweet_id)
+    not_found_list = set(raw_tweet_ids) - set(found_list)
+    if not_found_list:
+        print("Tweets not parsed into data frame:\n{}".format(list(not_found_list)))
+        not_found_rows = [line for line in raw_tweet_list if int(line.split('\t')[0]) in not_found_list]
+        PrettyPrinter().pprint(not_found_rows)
+
+
+# Remove all the unavailable tweets from the dataframe
+def remove_unavailable_tweets(tweets_dataframe):
+    print("Filtering out unavailable tweets...")
+    tweets_dataframe = tweets_dataframe[tweets_dataframe['Tweet'] != 'Not Available']
+    print("Filtered down to {} tweets".format(len(tweets_dataframe.index)))
+    return tweets_dataframe
 
 
 # Pre-processing the tweets before applying any sentiment classification
@@ -53,7 +69,7 @@ class PreProcessTweets:
         tweet = re.sub('@[^\s]+', 'AT_USER', tweet)
         # remove all the hashtag symbols form the tweets
         tweet = re.sub(r'#([^\s]+)', r'\1', tweet)
-        # remove all the meaningless repeated characters from the tweets to unify the words
+        # tokenise the tweet into words
         tweet = word_tokenize(tweet)
         return [word for word in tweet if word not in self._stopwords]
 
