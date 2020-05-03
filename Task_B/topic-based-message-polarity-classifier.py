@@ -1,14 +1,15 @@
 import argparse
-import pandas as pd
-import re
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
-from string import punctuation
-from nltk import FreqDist, MaxentClassifier, classify, precision, recall, collections
-from pprint import PrettyPrinter
-import random
-import numpy as np
 import pickle
+import random
+import re
+from pprint import PrettyPrinter
+from string import punctuation
+
+import numpy as np
+import pandas as pd
+from nltk import FreqDist, MaxentClassifier, classify, precision, recall, collections
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
 
 
 # Load the tweets from the tsv as a pandas dataframe
@@ -64,7 +65,7 @@ class TweetPreprocessor:
         tweet = re.sub('@[^\s]+', 'AT_USER', tweet)
         # remove all the hashtag symbols form the tweets
         tweet = re.sub(r'#([^\s]+)', r'\1', tweet)
-        # remove all the meaningless repeated characters from the tweets to unify the words
+        # tokenise the tweet into words
         tweet = word_tokenize(tweet)
         return [word for word in tweet if word not in self._stopwords]
 
@@ -96,7 +97,7 @@ def construct_featureset(tweets_dict, preprocessor):
 
 def build_model(training_features,preprocessed_validation_data ):
     algorithm = MaxentClassifier.ALGORITHMS[0]
-    MaxEntClassifier = MaxentClassifier.train(training_features, algorithm,max_iter=3)
+    MaxEntClassifier = MaxentClassifier.train(training_features, algorithm,max_iter=10)
     predictions =  [MaxEntClassifier.classify(extract_tweet_features(tweet[0])) for tweet in preprocessed_validation_data]
     return MaxEntClassifier, predictions
 
@@ -123,11 +124,7 @@ def evaluate_model(MaxEntClassifier):
             recall_list.append(avg_recall)
         except TypeError:
             pass
-    Average_recall = np.mean(recall_list)
-    Average_precission = np.mean(precision_list)
-    Average_accuracy = np.mean(accuracy_list)
-    F1_score = 2*((np.mean(recall_list) * np.mean(precision_list)) / (np.mean(recall_list) + np.mean(precision_list)))
-    return Average_accuracy, Average_precission, Average_recall, F1_score
+    return precision_list, recall_list, accuracy_list
 
 def save_model(MaxEntClassifier):
     f = open('MaxEntClassifier.pickle', 'wb')
@@ -155,11 +152,15 @@ if __name__ == '__main__':
     print("Building sentiment classification model from Twitter tweets (text messages) in {}.".format(tweet_file))
 
     tweets_df = load_tweets(tweet_file)
+    print(len(tweets_df))
+    tweets_df = tweets_df.drop_duplicates()
+    print(len(tweets_df))
     validate_against_file(tweet_file, tweets_df)
     tweets_df = remove_unavailable_tweets(tweets_df)
     precision_list = []
     recall_list = []
     accuracy_list = []
+    test_accuracy_list = []
 
     df_grouped = tweets_df.groupby('Topic')
     for name, group in df_grouped:
@@ -172,9 +173,14 @@ if __name__ == '__main__':
         test_features = construct_featureset(test_df.to_dict('records'), preprocessor)
         preprocessed_validation_data = preprocessor.preprocess(validation_df.to_dict('records'))
         MaxEntClassifier, predictions = build_model(training_features, preprocessed_validation_data)
-        Average_accuracy, Average_precission, Average_recall, F1_score = evaluate_model(MaxEntClassifier)
-        print('Average Recall:', Average_recall)
-        print('Average Precision:', Average_precission)
-        print('Average Accuracy:', Average_accuracy)
-        print('F1_score:', F1_score)
+        precision_list, recall_list, accuracy_list = evaluate_model(MaxEntClassifier)
 
+        Average_recall = np.mean(recall_list)
+        Average_precission = np.mean(precision_list)
+        Average_accuracy = np.mean(accuracy_list)
+        F1_score = 2*((np.mean(recall_list) * np.mean(precision_list)) / (np.mean(recall_list) + np.mean(precision_list)))
+
+        trained_model =  save_model(MaxEntClassifier)
+        classifier = restore_trained_model(trained_model)
+        test_accuracy = classify.accuracy(classifier, test_features)*100
+        test_accuracy_list.append(test_accuracy)
