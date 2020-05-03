@@ -48,19 +48,18 @@ def remove_unavailable_tweets(tweets_dataframe):
 
 
 # Pre-processing the tweets before applying any sentiment classification
-
-class PreProcessTweets:
+class TweetPreprocessor:
     def __init__(self):
         self._stopwords = set(stopwords.words('english') + list(punctuation) + ['AT_USER','URL'])
 
-    def process_tweets(self, list_of_tweets):
+    def preprocess(self, list_of_tweets):
         processedTweets=[]
         for tweet in list_of_tweets:
-            processedTweets.append((self._processTweet(tweet["Tweet"]),tweet["Sentiment"]))
+            processedTweets.append((self.clean(tweet["Tweet"]), tweet["Sentiment"]))
             random.shuffle(processedTweets)
         return processedTweets
 
-    def _processTweet(self, tweet):
+    def clean(self, tweet):
         # change all text to lowercase
         tweet = tweet.lower()
         # remove all links and URLs from the tweets
@@ -73,14 +72,15 @@ class PreProcessTweets:
         tweet = word_tokenize(tweet)
         return [word for word in tweet if word not in self._stopwords]
 
+
 # Function to build the vocabulary of all the words that exist in the tweets
 def create_wordbook(preprocessed_training_data):
     all_words = []
 
-    for (words, sentiment) in preprocessed_training_data:
+    for (words,sentiment) in preprocessed_training_data:
         all_words.extend(words)
 
-    word_list = FreqDist(all_words)
+    word_list = FreqDist(all_words) # encode the frequency distributions and count the number of each occurrence
     word_features = word_list.keys()
     return word_features
 
@@ -93,91 +93,65 @@ def extract_tweet_features(tweet):
     return features
 
 
+def construct_featureset(tweets_dict, preprocessor):
+    preprocessed_tweets = preprocessor.preprocess(tweets_dict)
+    return classify.apply_features(extract_tweet_features, preprocessed_tweets)
+
+
+def build_model(training_features,preprocessed_validation_data ):
+    NBClassifier = NaiveBayesClassifier.train(training_features)
+    predictions = [NBClassifier.classify(extract_tweet_features(tweet[0])) for tweet in preprocessed_validation_data]
+    return NBClassifier, predictions
+
+
+def evaluate_model(NBClassifier):
+    refsets = collections.defaultdict(set)
+    testsets = collections.defaultdict(set)
+
+    accuracy = classify.accuracy(NBClassifier, validation_features) * 100
+
+    for i, (feats, label) in enumerate(validation_features):
+        refsets[label].add(i)
+        observed = NBClassifier.classify(feats)
+        testsets[observed].add(i)
+        negative_precision = precision(refsets['negative'], testsets['negative'])
+        neutral_precision = precision(refsets['neutral'], testsets['neutral'])
+        positive_precision = precision(refsets['positive'], testsets['positive'])
+        positive_recall = recall(refsets['positive'], testsets['positive'])
+        neutral_recall = recall(refsets['neutral'], testsets['neutral'])
+        negative_recall = recall(refsets['negative'], testsets['negative'])
+        try:
+            avg_recall = (1/3)*(negative_recall + positive_recall + neutral_recall)
+            avg_precision = (1/3)*(negative_precision + positive_precision + neutral_precision)
+            print(accuracy, avg_recall, avg_precision)
+        except TypeError:
+            pass
+
+
 if __name__ == '__main__':
 
     arg_parser = argparse.ArgumentParser(
         description='ML model trained on Twitter tweets to classify sentiment from input tweets or messages.')
-    arg_parser.add_argument('-i', '--tweets-dir',
+    arg_parser.add_argument('-i', '--tweets-file',
                             help='the path to the directory where the tweets and labels are',
                             required=True)
 
     args = vars(arg_parser.parse_args())
-    tweets_directory = args['tweets_dir']
-    print("Building sentiment classification model from Twitter tweets (text messages) in {}.".format(tweets_directory))
+    tweets_file = args['tweets_file']
+    print("Building sentiment classification model from Twitter tweets (text messages) in {}.".format(tweets_file))
 
-    dict_tweets_training, dict_tweets_validation, dict_tweets_test = get_features_and_labels(tweets_directory)
+    tweets_df = load_tweets(tweets_file)
+    tweets_df = tweets_df.drop_duplicates()
+    validate_against_file(tweets_file, tweets_df)
+    tweets_df = remove_unavailable_tweets(tweets_df)
 
-    tweetProcessor = PreProcessTweets()
-    preprocessed_training_data = tweetProcessor.process_tweets(dict_tweets_training)
-    preprocessed_validation_data = tweetProcessor.process_tweets(dict_tweets_validation)
-    preprocessed_test_data = tweetProcessor.process_tweets(dict_tweets_test)
-
-    word_features = create_wordbook(preprocessed_training_data)
-    training_features = classify.apply_features(extract_tweet_features, preprocessed_training_data)
-    validation_features = classify.apply_features(extract_tweet_features, preprocessed_validation_data)
-    test_features = classify.apply_features(extract_tweet_features, preprocessed_test_data)
-
-    NBayesClassifier = NaiveBayesClassifier.train(training_features)
-    print("Classifier accuracy percent:",classify.accuracy(NBayesClassifier, test_features)*100)
-    NBResultLabels = [NBayesClassifier.classify(extract_tweet_features(tweet[0])) for tweet in preprocessed_validation_data]
-    most_informative_features = NBayesClassifier.show_most_informative_features(15)
-
-    # # get the majority vote
-    if NBResultLabels.count('positive') > NBResultLabels.count('negative') and NBResultLabels.count('neutral'):
-        print("Overall Positive Sentiment")
-        print("Positive Sentiment Percentage = " + str(100*NBResultLabels.count('positive')/len(NBResultLabels)) + "%")
-    elif NBResultLabels.count('negative') > NBResultLabels.count('positive') and NBResultLabels.count('neutral'):
-        print("Overall neutral Sentiment")
-        print("Neutral Sentiment Percentage = " + str(100*NBResultLabels.count('neutral')/len(NBResultLabels)) + "%")
-    else:
-        print("Overall Negative Sentiment")
-        print("Negative Sentiment Percentage = " + str(100*NBResultLabels.count('negative')/len(NBResultLabels)) + "%")
-    save_classifier = open("naivebayes.pickle","wb")
-    pickle.dump(NBayesClassifier, save_classifier)
-    save_classifier.close()
-
-    classifier_f = open("naivebayes.pickle", "rb")
-    classifier = pickle.load(classifier_f)
-    classifier_f.close()
-
-    print("Original Naive Bayes Algo accuracy percent:", (classify.accuracy(classifier, validation_features))*100)
-    classifier.show_most_informative_features(15)
-
-    MNB_classifier = SklearnClassifier(MultinomialNB())
-    MNB_classifier.train(training_features)
-    print("MNB_classifier accuracy percent:", (classify.accuracy(MNB_classifier, validation_features))*100)
-
-    BernoulliNB_classifier = SklearnClassifier(BernoulliNB())
-    BernoulliNB_classifier.train(training_features)
-    print("BernoulliNB_classifier accuracy percent:", (classify.accuracy(BernoulliNB_classifier, validation_features))*100)
-
-    LogisticRegression_classifier = SklearnClassifier(LogisticRegression())
-    LogisticRegression_classifier.train(training_features)
-    print("LogisticRegression_classifier accuracy percent:", (classify.accuracy(LogisticRegression_classifier, validation_features))*100)
-
-    SGDClassifier_classifier = SklearnClassifier(SGDClassifier())
-    SGDClassifier_classifier.train(training_features)
-    print("SGDClassifier_classifier accuracy percent:", (classify.accuracy(SGDClassifier_classifier, validation_features))*100)
-
-    SVC_classifier = SklearnClassifier(SVC(kernel='poly', gamma=0.0001, C=100))
-    SVC_classifier.train(training_features)
-    print("SVC_classifier accuracy percent:", (classify.accuracy(SVC_classifier, validation_features))*100)
-
-    LinearSVC_classifier = SklearnClassifier(LinearSVC())
-    LinearSVC_classifier.train(training_features)
-    print("LinearSVC_classifier accuracy percent:", (classify.accuracy(LinearSVC_classifier, validation_features))*100)
-    refsets = collections.defaultdict(set)
-    testsets = collections.defaultdict(set)
-    for i, (feats, label) in enumerate(test_features):
-             refsets[label].add(i)
-             observed = NBayesClassifier.classify(feats)
-             testsets[observed].add(i)
-    print('negative precision:', precision(refsets['negative'], testsets['negative']))
-    print('neutral precision:', precision(refsets['neutral'], testsets['neutral']))
-    print('positive precision:', precision(refsets['positive'], testsets['positive']))
-
-    print('negative recall:', recall(refsets['negative'], testsets['negative']))
-    print('neutral recall:', recall(refsets['neutral'], testsets['neutral']))
-    print('positive recall:', recall(refsets['positive'], testsets['positive']))
-
+    training_df, validation_df, test_df = np.split(tweets_df.sample(frac=1), [int(.6*len(tweets_df)), int(.8*len(tweets_df))])
+    preprocessor = TweetPreprocessor()
+    word_features = create_wordbook(preprocessor.preprocess(training_df.to_dict('records')))
+    training_features = construct_featureset(training_df.to_dict('records'), preprocessor)
+    validation_features = construct_featureset(validation_df.to_dict('records'), preprocessor)
+    test_features = construct_featureset(test_df.to_dict('records'), preprocessor)
+    preprocessed_validation_data = preprocessor.preprocess(validation_df.to_dict('records'))
+    NBClassifier, predictions = build_model(training_features, preprocessed_validation_data)
+    evaluate_model(NBClassifier)
 
