@@ -7,7 +7,7 @@ from string import punctuation
 
 import numpy as np
 import pandas as pd
-from nltk import FreqDist, MaxentClassifier, classify, precision, recall, collections
+from nltk import FreqDist, MaxentClassifier, classify, precision, recall, collections, NaiveBayesClassifier
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 
@@ -152,9 +152,7 @@ if __name__ == '__main__':
     print("Building sentiment classification model from Twitter tweets (text messages) in {}.".format(tweet_file))
 
     tweets_df = load_tweets(tweet_file)
-    print(len(tweets_df))
     tweets_df = tweets_df.drop_duplicates()
-    print(len(tweets_df))
     validate_against_file(tweet_file, tweets_df)
     tweets_df = remove_unavailable_tweets(tweets_df)
     precision_list = []
@@ -175,18 +173,18 @@ if __name__ == '__main__':
         MaxEntClassifier, predictions = build_model(training_features, preprocessed_validation_data)
         precision_list, recall_list, accuracy_list = evaluate_model(MaxEntClassifier)
 
-        Average_recall = np.mean(recall_list)
-        Average_precision = np.mean(precision_list)
-        Average_accuracy = np.mean(accuracy_list)
-        F1_score = 2*((np.mean(recall_list) * np.mean(precision_list)) / (np.mean(recall_list) + np.mean(precision_list)))
+    Average_recall = np.mean(recall_list)
+    Average_precision = np.mean(precision_list)
+    Average_accuracy = np.mean(accuracy_list)
+    F1_score = 2*((np.mean(recall_list) * np.mean(precision_list)) / (np.mean(recall_list) + np.mean(precision_list)))
 
-        trained_model =  save_model(MaxEntClassifier)
-        classifier = restore_trained_model(trained_model)
-        test_accuracy = classify.accuracy(classifier, test_features)*100
-        test_accuracy_list.append(test_accuracy)
+        # trained_model =  save_model(MaxEntClassifier)
+        # classifier = restore_trained_model(trained_model)
+        # test_accuracy = classify.accuracy(classifier, test_features)*100
+        # test_accuracy_list.append(test_accuracy)
 
-        print('Average Recall:', Average_recall)
-        print('Average Precision:', Average_precision)
+    print('Average Recall:', Average_recall)
+    print('Average Precision:', Average_precision)
 
-        print('Average Accuracy:', Average_accuracy)
-        print('F1_score:', F1_score)
+    print('Average Accuracy:', Average_accuracy)
+    print('F1_score:', F1_score)
