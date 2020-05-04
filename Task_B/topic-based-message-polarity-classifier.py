@@ -82,6 +82,8 @@ def create_wordbook(preprocessed_training_data):
     return word_features
 
 
+# eturn ajson pair of key representing the training vocabulary and its value
+# which is a binary True or False indicating the presenceor absence of the words in the tweet
 def extract_tweet_features(tweet):
     tweet_words = set(tweet)
     features = {}
@@ -90,11 +92,13 @@ def extract_tweet_features(tweet):
     return features
 
 
+# construct  the  training  feature  vector  that  is  usedto   train   the   classifier
 def construct_featureset(tweets_dict, preprocessor):
     preprocessed_tweets = preprocessor.preprocess(tweets_dict)
     return classify.apply_features(extract_tweet_features, preprocessed_tweets)
 
 
+# Build the Maximum Entropy classifier and train it on the training data
 def build_model(training_features,preprocessed_validation_data ):
     algorithm = MaxentClassifier.ALGORITHMS[0]
     MaxEntClassifier = MaxentClassifier.train(training_features, algorithm,max_iter=10)
@@ -102,6 +106,7 @@ def build_model(training_features,preprocessed_validation_data ):
     return MaxEntClassifier, predictions
 
 
+# Evaluate the model by calculating the average precision, average recall and accuracy
 def evaluate_model(MaxEntClassifier):
     refsets = collections.defaultdict(set)
     testsets = collections.defaultdict(set)
@@ -126,6 +131,8 @@ def evaluate_model(MaxEntClassifier):
             pass
     return precision_list, recall_list, accuracy_list
 
+
+# Save the trained model into a pickle file
 def save_model(MaxEntClassifier):
     f = open('MaxEntClassifier.pickle', 'wb')
     pickle.dump(MaxEntClassifier, f)
@@ -133,6 +140,8 @@ def save_model(MaxEntClassifier):
     trained_model = 'MaxEntClassifier.pickle'
     return trained_model
 
+
+# Restore the trained model
 def restore_trained_model(trained_model):
     f = open(trained_model, 'rb')
     classifier = pickle.load(f)
