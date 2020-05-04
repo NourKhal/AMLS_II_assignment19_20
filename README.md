@@ -20,9 +20,6 @@ Miniconda was installed - the path can be found by opening Anaconda prompt and r
 - Miniconda comes with virtual environment management so ignore the brew installations above, proceed to Section 2 and
 follow Windows specific requirements.
 
-- The project requires dlib - install it into your environment following the instructions at https://www.pyimagesearch.com/2018/01/22/install-dlib-easy-complete-guide/. 
-
-
 #### 2 - Set up a Python virtual environment (from the root of the AMLS directory)
         virtualenv -p python3.6 AMLS-venv
         source AMLS-venv/bin/activate
