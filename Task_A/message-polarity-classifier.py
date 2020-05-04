@@ -1,5 +1,6 @@
 import argparse
 import collections
+import pickle
 import random
 import re
 from pprint import PrettyPrinter
@@ -127,6 +128,18 @@ def evaluate_model(NBClassifier):
         except TypeError:
             pass
 
+def save_model(MaxEntClassifier):
+    f = open('NBClassifier.pickle', 'wb')
+    pickle.dump(MaxEntClassifier, f)
+    f.close()
+    return trained_model
+
+def restore_trained_model(trained_model):
+    f = open(trained_model, 'rb')
+    classifier = pickle.load(f)
+    f.close()
+    return classifier
+
 
 if __name__ == '__main__':
 
@@ -155,3 +168,6 @@ if __name__ == '__main__':
     NBClassifier, predictions = build_model(training_features, preprocessed_validation_data)
     evaluate_model(NBClassifier)
 
+    trained_model = save_model(NBClassifier)
+    classifier = restore_trained_model(trained_model)
+    test_accuracy = classify.accuracy(classifier, test_features)*100
