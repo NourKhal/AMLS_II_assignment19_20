@@ -52,12 +52,12 @@ Giving:
         postional argument:
         -i --tweets-file  The path to the TSV tweets file containing labelled tweets
                      
-        Sample Invocation Command to run gender_classifier.py 
+        Sample Invocation Command to run meassage-polarity-classifier.py 
         python /AMLS_II_assignment19_20/Task_A/message-polarity-classifier.py 
                     -i /Data/taskA_tweets.tsv
                   
         
-        Sample Invocation Command to run emotion_detector.py 
+        Sample Invocation Command to run topic-based-message-polarity.py 
         python /AMLS_II_assignment19_20/Task_B/topic-based-message-polarity-classifier.py 
                     -i /Data/taskB_tweets.tsv
      
