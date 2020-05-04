@@ -85,7 +85,8 @@ def create_wordbook(preprocessed_training_data):
     word_features = word_list.keys()
     return word_features
 
-
+# eturn ajson pair of key representing the training vocabulary and its value
+# which is a binary True or False indicating the presenceor absence of the words in the tweet
 def extract_tweet_features(tweet):
     tweet_words = set(tweet)
     features = {}
@@ -93,18 +94,18 @@ def extract_tweet_features(tweet):
         features['contains(%s)' % word] = (word in tweet_words)
     return features
 
-
+# construct  the  training  feature  vector  that  is  usedto   train   the   classifier
 def construct_featureset(tweets_dict, preprocessor):
     preprocessed_tweets = preprocessor.preprocess(tweets_dict)
     return classify.apply_features(extract_tweet_features, preprocessed_tweets)
 
-
+# Build the Naive Bayes classifier and train it on the training data
 def build_model(training_features,preprocessed_validation_data ):
     NBClassifier = NaiveBayesClassifier.train(training_features)
     predictions = [NBClassifier.classify(extract_tweet_features(tweet[0])) for tweet in preprocessed_validation_data]
     return NBClassifier, predictions
 
-
+# Evaluate the model by calculating the average precision, average recall and accuracy
 def evaluate_model(NBClassifier):
     refsets = collections.defaultdict(set)
     testsets = collections.defaultdict(set)
@@ -127,13 +128,15 @@ def evaluate_model(NBClassifier):
             print(accuracy, avg_recall, avg_precision)
         except TypeError:
             pass
-
-def save_model(MaxEntClassifier):
+# Save the trained model into a pickle file
+def save_model(NBClassifier):
     f = open('NBClassifier.pickle', 'wb')
-    pickle.dump(MaxEntClassifier, f)
+    pickle.dump(NBClassifier, f)
     f.close()
+    trained_model = 'NBClassifier.pickle'
     return trained_model
 
+# Restore the trained model
 def restore_trained_model(trained_model):
     f = open(trained_model, 'rb')
     classifier = pickle.load(f)
