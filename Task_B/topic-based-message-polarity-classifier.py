@@ -139,6 +139,7 @@ def restore_trained_model(trained_model):
     f.close()
     return classifier
 
+
 if __name__ == '__main__':
 
     arg_parser = argparse.ArgumentParser(
@@ -165,26 +166,31 @@ if __name__ == '__main__':
         training_df, validation_df, test_df = np.split(group.sample(frac=1), [int(.6*len(group)), int(.8*len(group))])
 
         preprocessor = TweetPreprocessor()
-        word_features = create_wordbook(preprocessor.preprocess(training_df.to_dict('records')))
+        word_features = create_wordbook(preprocessor.preprocess(tweets_df.to_dict('records')))
         training_features = construct_featureset(training_df.to_dict('records'), preprocessor)
         validation_features = construct_featureset(validation_df.to_dict('records'), preprocessor)
-        test_features = construct_featureset(test_df.to_dict('records'), preprocessor)
+        test_features = construct_featureset(tweets_df.to_dict('records'), preprocessor)
         preprocessed_validation_data = preprocessor.preprocess(validation_df.to_dict('records'))
         MaxEntClassifier, predictions = build_model(training_features, preprocessed_validation_data)
         precision_list, recall_list, accuracy_list = evaluate_model(MaxEntClassifier)
-
-    Average_recall = np.mean(recall_list)
-    Average_precision = np.mean(precision_list)
-    Average_accuracy = np.mean(accuracy_list)
-    F1_score = 2*((np.mean(recall_list) * np.mean(precision_list)) / (np.mean(recall_list) + np.mean(precision_list)))
 
         # trained_model =  save_model(MaxEntClassifier)
         # classifier = restore_trained_model(trained_model)
         # test_accuracy = classify.accuracy(classifier, test_features)*100
         # test_accuracy_list.append(test_accuracy)
 
+
+
+    Average_recall = np.mean(recall_list)
+    Average_precision = np.mean(precision_list)
+    Average_accuracy = np.mean(accuracy_list)
+    test_accuracy = np.mean(test_accuracy_list)
+    F1_score = 2*((np.mean(recall_list) * np.mean(precision_list)) / (np.mean(recall_list) + np.mean(precision_list)))
+
     print('Average Recall:', Average_recall)
     print('Average Precision:', Average_precision)
 
     print('Average Accuracy:', Average_accuracy)
     print('F1_score:', F1_score)
+    print('Test Accuracy', test_accuracy)
+
